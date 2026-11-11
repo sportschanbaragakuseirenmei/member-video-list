@@ -26,6 +26,7 @@ li{background:var(--panel);border:1px solid var(--line);border-radius:8px;margin
 li a{display:flex;gap:12px;align-items:center;padding:10px 12px;color:inherit;text-decoration:none}
 li a:hover{border-color:var(--accent)}
 .t{flex:1;min-width:0;word-break:break-all}
+.k{display:inline-block;margin-left:6px;font-size:.7rem;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 5px;white-space:nowrap}
 .d{font-size:.78rem;color:var(--muted);white-space:nowrap;text-align:right}
 mark{background:var(--hit);color:inherit;border-radius:2px}
 #more[hidden]{display:none}
@@ -80,7 +81,7 @@ function render(reset){
   const frag=document.createDocumentFragment();
   for(const v of hits.slice(shown,shown+PAGE)){
     const li=document.createElement('li');
-    li.innerHTML=`<a href="https://www.youtube.com/watch?v=${v.id}" target="_blank" rel="noopener"><span class="t">${hl(v.title,terms)}</span><span class="d">${v.date||''}${v.views!=null?`<br>${v.views.toLocaleString()} 回`:''}</span></a>`;
+    li.innerHTML=`<a href="https://www.youtube.com/watch?v=${v.id}${v.st!=null?`&t=${Math.max(0,Math.floor(v.st-5))}s`:''}" target="_blank" rel="noopener"><span class="t">${hl(v.title,terms)}${v.st!=null?'<span class="k">決まり手から再生</span>':''}</span><span class="d">${v.date||''}${v.views!=null?`<br>${v.views.toLocaleString()} 回`:''}</span></a>`;
     frag.appendChild(li);
   }
   ul.appendChild(frag);shown+=PAGE;
@@ -103,11 +104,12 @@ function search(){
 let timer;$('q').addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(search,150)});
 $('sort').addEventListener('change',search);$('year').addEventListener('change',search);
 $('more').addEventListener('click',()=>render(false));
-const views={};
+const views={},strike={};
+const sp=fetch('data/strike.tsv',{cache:'no-cache'}).then(r=>r.ok?r.text():'').then(t=>{for(const l of t.split('\n')){if(!l||l[0]==='#')continue;const [id,s]=l.split('\t');if(s!=='')strike[id]=+s}}).catch(()=>{});
 const vp=fetch('data/views.tsv',{cache:'no-cache'}).then(r=>r.ok?r.text():'').then(t=>{for(const l of t.split('\n')){if(!l||l[0]==='#')continue;const [id,c]=l.split('\t');views[id]=+c}}).catch(()=>{});
-Promise.all([fetch('data/videos.tsv',{cache:'no-cache'}).then(r=>r.text()),vp]).then(([txt])=>{
+Promise.all([fetch('data/videos.tsv',{cache:'no-cache'}).then(r=>r.text()),vp,sp]).then(([txt])=>{
   // 形式：動画ID<TAB>公開日(YYYY-MM-DD)<TAB>タイトル
-  all=txt.split('\n').filter(l=>l&&!l.startsWith('#')).map(l=>{const [id,date,...t]=l.split('\t');const title=t.join('\t');return{id,date:date||'',title,views:views[id],n:norm(title+' '+(date||''))}});
+  all=txt.split('\n').filter(l=>l&&!l.startsWith('#')).map(l=>{const [id,date,...t]=l.split('\t');const title=t.join('\t');return{id,date:date||'',title,views:views[id],st:strike[id],n:norm(title+' '+(date||''))}});
   const years=[...new Set(all.map(v=>v.date.slice(0,4)).filter(Boolean))].sort().reverse();
   for(const y of years){const o=document.createElement('option');o.value=o.textContent=y;$('year').appendChild(o)}
   const m=txt.match(/^# updated: (.+)$/m);$('upd').textContent=m?m[1]:'-';
