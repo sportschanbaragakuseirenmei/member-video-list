@@ -26,7 +26,7 @@ li{background:var(--panel);border:1px solid var(--line);border-radius:8px;margin
 li a{display:flex;gap:12px;align-items:center;padding:10px 12px;color:inherit;text-decoration:none}
 li a:hover{border-color:var(--accent)}
 .t{flex:1;min-width:0;word-break:break-all}
-.d{font-size:.78rem;color:var(--muted);white-space:nowrap}
+.d{font-size:.78rem;color:var(--muted);white-space:nowrap;text-align:right}
 mark{background:var(--hit);color:inherit;border-radius:2px}
 #more[hidden]{display:none}
 #more{display:block;margin:14px auto;padding:10px 22px;font-size:.95rem;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--fg);cursor:pointer}
@@ -44,7 +44,7 @@ mark{background:var(--hit);color:inherit;border-radius:2px}
     <input id="q" type="search" placeholder="選手名・大学・種目・決まり手など（スペースで区切ると絞り込み）" autocomplete="off">
     <div class="opts">
       <label>並び順
-        <select id="sort"><option value="new">新しい順</option><option value="old">古い順</option><option value="title">タイトル順</option></select>
+        <select id="sort"><option value="new">新しい順</option><option value="old">古い順</option><option value="views">再生回数順</option><option value="title">タイトル順</option></select>
       </label>
       <label>年
         <select id="year"><option value="">すべて</option></select>
@@ -80,7 +80,7 @@ function render(reset){
   const frag=document.createDocumentFragment();
   for(const v of hits.slice(shown,shown+PAGE)){
     const li=document.createElement('li');
-    li.innerHTML=`<a href="https://www.youtube.com/watch?v=${v.id}" target="_blank" rel="noopener"><span class="t">${hl(v.title,terms)}</span><span class="d">${v.date||''}</span></a>`;
+    li.innerHTML=`<a href="https://www.youtube.com/watch?v=${v.id}" target="_blank" rel="noopener"><span class="t">${hl(v.title,terms)}</span><span class="d">${v.date||''}${v.views!=null?`<br>${v.views.toLocaleString()} 回`:''}</span></a>`;
     frag.appendChild(li);
   }
   ul.appendChild(frag);shown+=PAGE;
@@ -95,6 +95,7 @@ function search(){
   const s=$('sort').value;
   if(s==='new')hits.sort((a,b)=>b.date.localeCompare(a.date));
   else if(s==='old')hits.sort((a,b)=>a.date.localeCompare(b.date));
+  else if(s==='views')hits.sort((a,b)=>(b.views??-1)-(a.views??-1));
   else hits.sort((a,b)=>a.title.localeCompare(b.title,'ja'));
   render(true);
   try{const u=new URL(location);u.searchParams.set('q',$('q').value);history.replaceState(null,'',u)}catch(e){}
@@ -102,9 +103,11 @@ function search(){
 let timer;$('q').addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(search,150)});
 $('sort').addEventListener('change',search);$('year').addEventListener('change',search);
 $('more').addEventListener('click',()=>render(false));
-fetch('data/videos.tsv',{cache:'no-cache'}).then(r=>r.text()).then(txt=>{
+const views={};
+const vp=fetch('data/views.tsv',{cache:'no-cache'}).then(r=>r.ok?r.text():'').then(t=>{for(const l of t.split('\n')){if(!l||l[0]==='#')continue;const [id,c]=l.split('\t');views[id]=+c}}).catch(()=>{});
+Promise.all([fetch('data/videos.tsv',{cache:'no-cache'}).then(r=>r.text()),vp]).then(([txt])=>{
   // 形式：動画ID<TAB>公開日(YYYY-MM-DD)<TAB>タイトル
-  all=txt.split('\n').filter(l=>l&&!l.startsWith('#')).map(l=>{const [id,date,...t]=l.split('\t');const title=t.join('\t');return{id,date:date||'',title,n:norm(title+' '+(date||''))}});
+  all=txt.split('\n').filter(l=>l&&!l.startsWith('#')).map(l=>{const [id,date,...t]=l.split('\t');const title=t.join('\t');return{id,date:date||'',title,views:views[id],n:norm(title+' '+(date||''))}});
   const years=[...new Set(all.map(v=>v.date.slice(0,4)).filter(Boolean))].sort().reverse();
   for(const y of years){const o=document.createElement('option');o.value=o.textContent=y;$('year').appendChild(o)}
   const m=txt.match(/^# updated: (.+)$/m);$('upd').textContent=m?m[1]:'-';
