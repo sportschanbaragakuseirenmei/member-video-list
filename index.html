@@ -28,6 +28,7 @@ li a:hover{border-color:var(--accent)}
 .t{flex:1;min-width:0;word-break:break-all}
 .d{font-size:.78rem;color:var(--muted);white-space:nowrap}
 mark{background:var(--hit);color:inherit;border-radius:2px}
+#more[hidden]{display:none}
 #more{display:block;margin:14px auto;padding:10px 22px;font-size:.95rem;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--fg);cursor:pointer}
 .note{font-size:.8rem;color:var(--muted);margin:18px 0}
 .empty{padding:30px 0;text-align:center;color:var(--muted)}
@@ -53,7 +54,7 @@ mark{background:var(--hit);color:inherit;border-radius:2px}
   </div>
   <ul id="list"></ul>
   <button id="more" hidden>さらに表示</button>
-  <p class="note">例：「村田 扇面」「女子長剣フリー 決勝」「2026 関東」。全角・半角、カタカナ・ひらがなの違いは区別しません。<br>最終更新：<span id="upd">-</span></p>
+  <p class="note">例：「村田 扇面」「女子長剣フリー 決勝」「新人 二刀 決勝」。全角・半角、カタカナ・ひらがなの違いは区別しません。<br>最終更新：<span id="upd">-</span></p>
 </main>
 <script>
 const PAGE=100;let all=[],hits=[],shown=0;
