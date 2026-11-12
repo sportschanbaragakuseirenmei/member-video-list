@@ -46,7 +46,8 @@ for k in range(0, len(ids), 50):
         break
     for it in data.get("items", []):
         views[it["id"]] = it["statistics"].get("viewCount", "0")
-# 取れなかった動画（非公開になったものなど）は前回の値を残す
+fetched = len(views)
+# 取れなかった動画（非公開になったもの、途中で止まった分など）は前回の値を残す
 for i in ids:
     if i not in views and i in old:
         views[i] = old[i]
@@ -56,4 +57,6 @@ with open("data/views.tsv", "w", encoding="utf-8") as f:
     for i in ids:
         if i in views:
             f.write(f"{i}\t{views[i]}\n")
-print(f"{len(views)} / {len(ids)} 本の再生回数を更新しました")
+print(f"今回取れたのは {fetched} / {len(ids)} 本です（取れなかった分は前回の値のまま）")
+if fetched < len(ids) * 0.9:
+    sys.exit("取れた本数が少なすぎるので、失敗として扱います")
