@@ -1,8 +1,8 @@
 name: 再生回数の更新
 
 on:
-  # schedule:                # APIキーではメンバー限定動画の再生回数が0になるため一時停止中
-  #   - cron: "23 18 * * *"   # 毎日 3:23（日本時間）
+  schedule:
+    - cron: "23 18 * * *"   # 毎日 3:23（日本時間）
   workflow_dispatch:        # Actions の画面から手動でも実行できる
 
 permissions:
