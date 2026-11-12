@@ -47,11 +47,11 @@ mark{background:var(--hit);color:inherit;border-radius:2px}
       <label>並び順
         <select id="sort"><option value="new">新しい順</option><option value="old">古い順</option><option value="views">再生回数順</option><option value="title">タイトル順</option></select>
       </label>
-      <label>年
-        <select id="year"><option value="">すべて</option></select>
-      </label>
       <label>大会
         <select id="tourn" style="max-width:15em"><option value="">すべて</option></select>
+      </label>
+      <label>種別
+        <select id="kind"><option value="">すべて</option><option>打突個人</option><option>基本動作</option><option>団体戦</option><option>その他</option></select>
       </label>
       <span id="count">読み込み中…</span>
     </div>
@@ -94,8 +94,8 @@ function render(reset){
 }
 function search(){
   const terms=norm($('q').value).split(' ').filter(Boolean);
-  const y=$('year').value, tv=$('tourn').value;
-  hits=all.filter(v=>(!y||v.date.startsWith(y))&&(!tv||v.tn===tv)&&terms.every(t=>v.n.includes(t)));
+  const kv=$('kind').value, tv=$('tourn').value;
+  hits=all.filter(v=>(!kv||v.kind===kv)&&(!tv||v.tn===tv)&&terms.every(t=>v.n.includes(t)));
   const s=$('sort').value;
   if(s==='new')hits.sort((a,b)=>b.date.localeCompare(a.date));
   else if(s==='old')hits.sort((a,b)=>a.date.localeCompare(b.date));
@@ -105,17 +105,19 @@ function search(){
   try{const u=new URL(location);u.searchParams.set('q',$('q').value);history.replaceState(null,'',u)}catch(e){}
 }
 let timer;$('q').addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(search,150)});
-$('sort').addEventListener('change',search);$('year').addEventListener('change',search);$('tourn').addEventListener('change',search);
+$('sort').addEventListener('change',search);$('kind').addEventListener('change',search);$('tourn').addEventListener('change',search);
 $('more').addEventListener('click',()=>render(false));
 const views={},strike={},tourn={};
+// 種別：タイトルから判定（基本動作 → その他 → 団体戦 → 打突個人 の順）
+const OTHER=/ハイライト|一括|開会|閉会|表彰式|インタビュー|まとめ|ダイジェスト|総集編|予告|告知|紹介|演武|デモ|練習|抽選|説明|集合写真|挨拶|あいさつ|入場|閉幕|開幕|PV|CM|ほか|その他|ショート動画|切り抜き|特集|解説|講習|講座|セミナー|試し斬り|スロー|名場面|連続撮影|ベスト|best/i;
+const TEAM=/団体|リーグ|先鋒|次鋒|中堅|副将|大将|[男女]子\s*[0-9０-９一二三１２３]部|[0-9０-９１２３]部\s|入替戦|入れ替え戦|大学\s*[vｖ][sｓ]|[vｖ][sｓ]\s*\S*大学|\S+T\s+\S+T/i;
+const kindOf=t=>/基本動作|基本(?!的)/.test(t)?'基本動作':OTHER.test(t)?'その他':TEAM.test(t)?'団体戦':'打突個人';
 const tp=fetch('data/tournament.tsv',{cache:'no-cache'}).then(r=>r.ok?r.text():'').then(t=>{for(const l of t.split('\n')){if(!l||l[0]==='#')continue;const [id,s]=l.split('\t');if(s)tourn[id]=s}}).catch(()=>{});
 const sp=fetch('data/strike.tsv',{cache:'no-cache'}).then(r=>r.ok?r.text():'').then(t=>{for(const l of t.split('\n')){if(!l||l[0]==='#')continue;const [id,s]=l.split('\t');if(s!=='')strike[id]=+s}}).catch(()=>{});
 const vp=fetch('data/views.tsv',{cache:'no-cache'}).then(r=>r.ok?r.text():'').then(t=>{for(const l of t.split('\n')){if(!l||l[0]==='#')continue;const [id,c]=l.split('\t');views[id]=+c}}).catch(()=>{});
 Promise.all([fetch('data/videos.tsv',{cache:'no-cache'}).then(r=>r.text()),vp,sp,tp]).then(([txt])=>{
   // 形式：動画ID<TAB>公開日(YYYY-MM-DD)<TAB>タイトル
-  all=txt.split('\n').filter(l=>l&&!l.startsWith('#')).map(l=>{const [id,date,...t]=l.split('\t');const title=t.join('\t');return{id,date:date||'',title,views:views[id],st:strike[id],tn:tourn[id]||'',n:norm(title+' '+(date||'')+' '+(tourn[id]||''))}});
-  const years=[...new Set(all.map(v=>v.date.slice(0,4)).filter(Boolean))].sort().reverse();
-  for(const y of years){const o=document.createElement('option');o.value=o.textContent=y;$('year').appendChild(o)}
+  all=txt.split('\n').filter(l=>l&&!l.startsWith('#')).map(l=>{const [id,date,...t]=l.split('\t');const title=t.join('\t');return{id,date:date||'',title,views:views[id],st:strike[id],tn:tourn[id]||'',kind:kindOf(title),n:norm(title+' '+(date||'')+' '+(tourn[id]||''))}});
   const tc={};for(const v of all)if(v.tn)tc[v.tn]=(tc[v.tn]||0)+1;
   const ty=s=>/^\d{4}/.test(s)?+s.slice(0,4):0;
   for(const t of Object.keys(tc).sort((a,b)=>ty(b)-ty(a)||tc[b]-tc[a])){const o=document.createElement('option');o.value=t;o.textContent=`${t}（${tc[t].toLocaleString()}）`;$('tourn').appendChild(o)}
