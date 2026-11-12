@@ -108,11 +108,11 @@ let timer;$('q').addEventListener('input',()=>{clearTimeout(timer);timer=setTime
 $('sort').addEventListener('change',search);$('kind').addEventListener('change',search);$('tourn').addEventListener('change',search);
 $('more').addEventListener('click',()=>render(false));
 const views={},strike={},tourn={};
-// 種別：タイトルと大会から判定（基本動作 → その他 → 団体戦 → 打突個人 の順）
-const OTHER=/ハイライト|一括|開会|閉会|表彰式|インタビュー|まとめ|ダイジェスト|総集編|予告|告知|紹介|演武|デモ|練習|抽選|説明|集合写真|挨拶|あいさつ|入場|閉幕|開幕|PV|CM|ほか|その他|ショート動画|切り抜き|特集|解説|講習|講座|セミナー|試し斬り|スロー|名場面|連続撮影|ベスト|best|意味なし|バンド|曲目|DJ|フラッシュモブ|フィナーレ|余興/i;
+// 種別：タイトルと大会から判定（基本動作 → 一括・連続撮影は打突個人 → その他 → 団体戦 → 打突個人 の順）
+const OTHER=/ハイライト|開会|閉会|表彰式|インタビュー|まとめ|ダイジェスト|総集編|予告|告知|紹介|演武|デモ|練習|抽選|説明|集合写真|挨拶|あいさつ|入場|閉幕|開幕|PV|CM|ほか|その他|ショート動画|切り抜き|特集|解説|講習|講座|セミナー|試し斬り|スロー|名場面|ベスト|best|意味なし|バンド|曲目|DJ|フラッシュモブ|フィナーレ|余興/i;
 const OTHER_EVENTS=/卒業パーティー|新入生交流会/;
 const TEAM=/団体|リーグ|先鋒|次鋒|中堅|副将|大将|[男女]子\s*[0-9一二三]部|[0-9]部\s|入替戦|入れ替え戦|大学\s*vs|vs\s*\S*大学|\S+T\s+\S+T|クラブチーム|対抗戦|いくさ|合戦/i;
-const kindOf=(title,tn)=>{const t=title.normalize('NFKC');return /基本動作|基本(?!的)/.test(t)?'基本動作':(OTHER.test(t)||OTHER_EVENTS.test(tn||''))?'その他':TEAM.test(t)?'団体戦':'打突個人'};
+const kindOf=(title,tn)=>{const t=title.normalize('NFKC');return /基本動作|基本(?!的)/.test(t)?'基本動作':/一括|連続撮影/.test(t)?(TEAM.test(t)?'団体戦':'打突個人'):(OTHER.test(t)||OTHER_EVENTS.test(tn||''))?'その他':TEAM.test(t)?'団体戦':'打突個人'};
 const tp=fetch('data/tournament.tsv',{cache:'no-cache'}).then(r=>r.ok?r.text():'').then(t=>{for(const l of t.split('\n')){if(!l||l[0]==='#')continue;const [id,s]=l.split('\t');if(s)tourn[id]=s}}).catch(()=>{});
 const sp=fetch('data/strike.tsv',{cache:'no-cache'}).then(r=>r.ok?r.text():'').then(t=>{for(const l of t.split('\n')){if(!l||l[0]==='#')continue;const [id,s]=l.split('\t');if(s!=='')strike[id]=+s}}).catch(()=>{});
 const vp=fetch('data/views.tsv',{cache:'no-cache'}).then(r=>r.ok?r.text():'').then(t=>{for(const l of t.split('\n')){if(!l||l[0]==='#')continue;const [id,c]=l.split('\t');views[id]=+c}}).catch(()=>{});
