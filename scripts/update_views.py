@@ -1,11 +1,24 @@
 """data/videos.tsv の全動画の再生回数を YouTube Data API で取り直し、data/views.tsv を書き換える。
-環境変数 YT_API_KEY に YouTube Data API v3 の APIキーが必要。"""
+メンバー限定動画の再生回数はチャンネル所有者の許可が必要なので、
+環境変数 YT_CLIENT_ID / YT_CLIENT_SECRET / YT_REFRESH_TOKEN（読み取り専用の OAuth）を使う。
+これらがなければ YT_API_KEY を使う（メンバー限定動画は 0 になる）。"""
 import json, os, sys, time, urllib.error, urllib.parse, urllib.request
 from datetime import datetime, timedelta, timezone
 
 key = os.environ.get("YT_API_KEY")
-if not key:
-    sys.exit("YT_API_KEY が設定されていません")
+cid, csec, rtok = (os.environ.get(n) for n in ("YT_CLIENT_ID", "YT_CLIENT_SECRET", "YT_REFRESH_TOKEN"))
+headers = {}
+if cid and csec and rtok:
+    body = urllib.parse.urlencode({"client_id": cid, "client_secret": csec, "refresh_token": rtok,
+                                   "grant_type": "refresh_token"}).encode()
+    try:
+        with urllib.request.urlopen("https://oauth2.googleapis.com/token", body, timeout=30) as r:
+            headers = {"Authorization": "Bearer " + json.load(r)["access_token"]}
+    except urllib.error.HTTPError as e:
+        sys.exit(f"ログインの許可（リフレッシュトークン）が使えません: HTTP {e.code} {e.read().decode('utf-8', 'replace')[:300]}")
+    key = None
+elif not key:
+    sys.exit("YT_CLIENT_ID / YT_CLIENT_SECRET / YT_REFRESH_TOKEN も YT_API_KEY も設定されていません")
 ids = [l.split("\t")[0] for l in open("data/videos.tsv", encoding="utf-8")
        if l.strip() and not l.startswith("#")]
 old = {}
@@ -16,12 +29,15 @@ for l in open("data/views.tsv", encoding="utf-8"):
 views = {}
 for k in range(0, len(ids), 50):
     batch = ids[k:k + 50]
-    q = urllib.parse.urlencode({"part": "statistics", "id": ",".join(batch), "key": key,
-                                "fields": "items(id,statistics/viewCount)"})
+    params = {"part": "statistics", "id": ",".join(batch), "fields": "items(id,statistics/viewCount)"}
+    if key:
+        params["key"] = key
+    q = urllib.parse.urlencode(params)
     data = None
     for attempt in range(4):
         try:
-            with urllib.request.urlopen("https://www.googleapis.com/youtube/v3/videos?" + q, timeout=30) as r:
+            req = urllib.request.Request("https://www.googleapis.com/youtube/v3/videos?" + q, headers=headers)
+            with urllib.request.urlopen(req, timeout=30) as r:
                 data = json.load(r)
             break
         except urllib.error.HTTPError as e:
