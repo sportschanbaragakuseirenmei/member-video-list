@@ -58,5 +58,8 @@ with open("data/views.tsv", "w", encoding="utf-8") as f:
         if i in views:
             f.write(f"{i}\t{views[i]}\n")
 print(f"今回取れたのは {fetched} / {len(ids)} 本です（取れなかった分は前回の値のまま）")
+nonzero = sum(1 for i in ids if views.get(i, "0") not in ("0", 0))
+if nonzero < len(ids) * 0.5:
+    sys.exit("再生回数がほとんど0になっているので（メンバー限定動画は所有者のログインが必要）、更新しません")
 if fetched < len(ids) * 0.9:
     sys.exit("取れた本数が少なすぎるので、失敗として扱います")
